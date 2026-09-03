@@ -1,8 +1,64 @@
+import os
+import fitz
 import streamlit as st
+from llama_index.core import Document, VectorStoreIndex, StorageContext
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.vector_stores.chroma import ChromaVectorStore
+import chromadb
+
 from graph.flow import build_graph
 from graph.state import GraphState
 
 st.set_page_config(page_title="Equity Research Assistant", page_icon="📊", layout="wide")
+
+
+@st.cache_resource
+def ensure_index_built():
+    """Build the ChromaDB index from PDFs on first run if it doesn't already exist.
+    This lets the app deploy from just the PDFs + code, without committing the
+    (500MB+) pre-built index to the repo."""
+    chroma_client = chromadb.PersistentClient(path="./chroma_db")
+    collection = chroma_client.get_or_create_collection("annual_reports")
+
+    if collection.count() > 0:
+        return  # already built, nothing to do
+
+    st.info("First-time setup: building document index from annual reports. This takes a few minutes...")
+
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+
+    def load_pdf_clean(path):
+        doc = fitz.open(path)
+        text = ""
+        for page in doc:
+            text += page.get_text("text") + "\n"
+        doc.close()
+        return text
+
+    docs_paths = {
+        "infosys_annual_report.pdf": "data/docs/infosys_annual_report.pdf",
+        "tcs_annual_report.pdf": "data/docs/tcs_annual_report.pdf",
+    }
+    documents = [
+        Document(text=load_pdf_clean(p), metadata={"source": name})
+        for name, p in docs_paths.items()
+    ]
+
+    splitter = SentenceSplitter(chunk_size=512, chunk_overlap=50)
+    vector_store = ChromaVectorStore(chroma_collection=collection)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
+    VectorStoreIndex.from_documents(
+        documents,
+        storage_context=storage_context,
+        embed_model=embed_model,
+        transformations=[splitter],
+    )
+    st.success("Index built successfully.")
+
+
+ensure_index_built()
 
 # ---------- ChatGPT-style theming ----------
 st.markdown("""
@@ -19,8 +75,6 @@ st.markdown("""
         background-color: #0f0f10;
     }
 
-    /* The fixed bottom input container has its own background layer by
-       default - force it to match the app background so there's no visible seam */
     div[data-testid="stBottom"],
     div[data-testid="stBottomBlockContainer"],
     .stChatInputContainer {
@@ -33,7 +87,6 @@ st.markdown("""
         padding-bottom: 8rem;
     }
 
-    /* Header */
     .app-header {
         text-align: center;
         margin-bottom: 2.5rem;
@@ -49,7 +102,6 @@ st.markdown("""
         font-size: 0.88rem;
     }
 
-    /* Message rows */
     .msg-row {
         display: flex;
         margin-bottom: 1.6rem;
@@ -62,7 +114,6 @@ st.markdown("""
         justify-content: flex-start;
     }
 
-    /* User bubble - right aligned pill, like ChatGPT */
     .user-bubble {
         background-color: #2a2b32;
         color: #ececec;
@@ -73,7 +124,6 @@ st.markdown("""
         line-height: 1.5;
     }
 
-    /* Assistant - plain full-width text, no bubble, like ChatGPT */
     .assistant-content {
         color: #d1d5db;
         font-size: 0.95rem;
@@ -92,7 +142,6 @@ st.markdown("""
         font-size: 0.85rem;
     }
 
-    /* Badges */
     .badge-row {
         display: flex;
         flex-wrap: wrap;
@@ -116,7 +165,6 @@ st.markdown("""
         color: #9a9ba1;
     }
 
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #171717;
     }
@@ -132,7 +180,6 @@ st.markdown("""
         border-color: rgba(255,255,255,0.15);
     }
 
-    /* Chat input - rounded pill, ChatGPT style */
     .stChatInput textarea, .stChatInput input {
         border-radius: 24px !important;
     }
