@@ -2,7 +2,7 @@ import os
 import fitz  # pymupdf
 from dotenv import load_dotenv
 from llama_index.core import Document, VectorStoreIndex, StorageContext
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.groq import Groq
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -40,7 +40,7 @@ for name, path in docs_paths.items():
 print(f"Loaded {len(documents)} document(s)")
 
 # 3. Split into chunks
-splitter = SentenceSplitter(chunk_size=512, chunk_overlap=50)
+splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=50)
 
 # 4. Set up ChromaDB as the vector store (persists to disk)
 #    Delete any old/dirty collection first so we start clean

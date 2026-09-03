@@ -2,7 +2,7 @@ import os
 import fitz
 import streamlit as st
 from llama_index.core import Document, VectorStoreIndex, StorageContext
-from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.node_parser import TokenTextSplitter
 from llama_index.vector_stores.chroma import ChromaVectorStore
 import chromadb
 
@@ -45,7 +45,7 @@ def ensure_index_built():
         for name, p in docs_paths.items()
     ]
 
-    splitter = SentenceSplitter(chunk_size=512, chunk_overlap=50)
+    splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=50)
     vector_store = ChromaVectorStore(chroma_collection=collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
