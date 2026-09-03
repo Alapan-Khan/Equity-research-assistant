@@ -90,3 +90,5 @@ streamlit run app.py                       # launch the UI
 
 LangGraph · LlamaIndex · ChromaDB · Groq · HuggingFace Embeddings · Tavily ·
 SQLite · Streamlit · PyMuPDF
+
+**Live demo:** [equity-research-assistant...streamlit.app](https://equity-research-assistant-zmcjo3av8dy4ub39qy6qju.streamlit.app/)
